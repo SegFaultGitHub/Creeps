@@ -3,12 +3,18 @@ version '1.0-SNAPSHOT'
 
 apply plugin: 'java'
 
-sourceCompatibility = 1.5
+sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
+    compile 'org.projectlombok:lombok:1.16.12'
+    compile group: 'commons-io', name: 'commons-io', version: '2.5'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.7'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.7'
+    compile "io.vertx:vertx-core:3.3.3"
+    compile 'io.vertx:vertx-web:3.3.3'
     testCompile group: 'junit', name: 'junit', version: '4.11'
 }
