@@ -1,7 +1,5 @@
 import Model.Position;
-import Verticles.NexusVerticle;
-import Verticles.ProbeVerticle;
-import Verticles.ScoutVerticle;
+import Verticles.*;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
@@ -19,6 +17,7 @@ public class Manager {
     private int port = 1337;
     private String host = "localhost";
 
+    private int index = 0;
 
     public Manager() {
         logger = LogManager.getLogger(Manager.class);
@@ -45,7 +44,7 @@ public class Manager {
         vertx.eventBus().consumer("/spawn/probe", message -> {
             JsonObject json = (JsonObject) message.body();
             String owner = json.getString("login");
-            String id = json.getString("id");
+            String id = json.getString("agentId");
             JsonObject location = json.getJsonObject("location");
             Position position = new Position(
                     location.getInteger("x"),
@@ -60,6 +59,7 @@ public class Manager {
                             id,
                             position
                     ), new DeploymentOptions().setWorker(true));
+                    message.reply(true);
                     break;
                 case "scout":
                     vertx.deployVerticle(new ScoutVerticle(
@@ -67,6 +67,7 @@ public class Manager {
                             id,
                             position
                     ), new DeploymentOptions().setWorker(true));
+                    message.reply(true);
                     break;
                 case "nexus":
                     vertx.deployVerticle(new ProbeVerticle(
@@ -74,6 +75,7 @@ public class Manager {
                             id,
                             position
                     ), new DeploymentOptions().setWorker(true));
+                    message.reply(true);
                     break;
                 case "templar":
                     vertx.deployVerticle(new ScoutVerticle(
@@ -81,13 +83,14 @@ public class Manager {
                             id,
                             position
                     ), new DeploymentOptions().setWorker(true));
+                    message.reply(true);
                     break;
                 default:
                     logger.error("unable to spawn");
                     break;
             }
         });
-        init(vertx, "111111111111111");
+        init(vertx, "player_" + index);
     }
 
     private void init(Vertx vertx, String login) {
@@ -97,7 +100,8 @@ public class Manager {
     private void newUser(JsonObject json, Vertx vertx) {
         String error = json.getString("error");
         if (error != null) {
-            logger.error("new user: {}", error);
+            logger.error("retrying...");
+            init(vertx, "player_" + ++index);
             return;
         }
         String owner = json.getString("login");

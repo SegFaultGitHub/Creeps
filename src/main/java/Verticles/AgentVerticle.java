@@ -1,5 +1,6 @@
 package Verticles;
 
+import Model.BlockValue;
 import Model.Position;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
@@ -9,6 +10,7 @@ import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import org.apache.logging.log4j.Logger;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -17,7 +19,7 @@ import java.util.function.Consumer;
  * Created by SegFault on 18/01/2017.
  */
 public abstract class AgentVerticle extends AbstractVerticle {
-    //<editor-fold desc="Constants">
+    //<editor-fold desc="Constants time">
     // Conf ------------------------------------------------------------------------------------------------------------
 
     protected final int TICKRATE = 20;
@@ -93,7 +95,10 @@ public abstract class AgentVerticle extends AbstractVerticle {
     protected final int DEFAULT_ORBITALLASER_POSTTIME = TICKRATE * 10;
     protected final int DEFAULT_ORBITALLASER_PRETIME = TICKRATE * 10;
 
-    protected final int OFFSET = 20000;
+    protected final int OFFSET = 100;
+    //</editor-fold>
+    //<editor-fold desc="Constants block">
+    protected Map<String, BlockValue> blockValues;
     //</editor-fold>
 
     protected String owner;
@@ -108,6 +113,7 @@ public abstract class AgentVerticle extends AbstractVerticle {
         id = id_;
         position = position_;
         commands = new ConcurrentHashMap<>();
+        blockValues = new HashMap<>();
     }
 
     protected void makeDecision() { }
@@ -120,6 +126,44 @@ public abstract class AgentVerticle extends AbstractVerticle {
         options.setDefaultPort(1337);
         options.setDefaultHost("localhost");
         client = vertx.createHttpClient(options);
+
+        //<editor-fold desc="Constants block">
+        blockValues.put("SAND", new BlockValue(3, 5));
+        blockValues.put("COBBLESTONE", new BlockValue(0, 2));
+        blockValues.put("STONE", new BlockValue(10, 20));
+        blockValues.put("COAL_ORE", new BlockValue(100, 50));
+        blockValues.put("IRON_ORE", new BlockValue(0, 100));
+        blockValues.put("GOLD_ORE", new BlockValue(0, 150));
+        blockValues.put("LAPIS_ORE", new BlockValue(0, 200));
+        blockValues.put("REDSTONE_ORE", new BlockValue(25, 150));
+        blockValues.put("DIAMOND_ORE", new BlockValue(0, 500));
+        blockValues.put("OBSIDIAN", new BlockValue(250, 250));
+        blockValues.put("BEDROCK", new BlockValue(-100000, -100000));
+        blockValues.put("WOOL", new BlockValue(100, 100));
+
+        blockValues.put("DIRT", new BlockValue(10, 0));
+        blockValues.put("GRASS", new BlockValue(20, 0));
+        blockValues.put("GRASS_PATH", new BlockValue(20, 0));
+        blockValues.put("LONG_GRASS", new BlockValue(30, 0));
+        blockValues.put("LEAVES", new BlockValue(50, 0));
+        blockValues.put("LEAVES_2", new BlockValue(50, 0));
+        blockValues.put("WOOD", new BlockValue(100, 0));
+        blockValues.put("CACTUS", new BlockValue(100, 0));
+        blockValues.put("DEAD_BUSH", new BlockValue(10, 0));
+        blockValues.put("RED_ROSE", new BlockValue(100, 0));
+        blockValues.put("YELLOW_FLOWER", new BlockValue(100, 0));
+        blockValues.put("CHORUS_FLOWER", new BlockValue(100, 0));
+        blockValues.put("LOG", new BlockValue(100, 0));
+        blockValues.put("LOG_2", new BlockValue(100, 0));
+        blockValues.put("PUMPKIN", new BlockValue(100, 0));
+
+        blockValues.put("WATER", new BlockValue(-1, -1));
+        blockValues.put("STATIONARY_WATER", new BlockValue(-100, -100));
+        blockValues.put("STATIONARY_LAVA", new BlockValue(-500, -500));
+        blockValues.put("LAVA", new BlockValue(-500, -500));
+        blockValues.put("TNT", new BlockValue(-500, -500));
+        blockValues.put("AIR", new BlockValue(0, 0));
+        //</editor-fold>
     }
 
     @Override
@@ -141,5 +185,41 @@ public abstract class AgentVerticle extends AbstractVerticle {
         }))
                 .putHeader("content-type", "application/json")
                 .end(Json.encode(new JsonObject()));
+    }
+
+    protected int getBlockValue(String blockType) {
+        if (!blockValues.keySet().contains(blockType)) {
+            return -100;
+        }
+        return blockValues.get(blockType).getValue();
+    }
+
+    protected void reportAndCallback(int timer, String reportId, String caller, Runnable callback) {
+        vertx.setTimer(timer, __ -> get("/report/" + reportId, json -> {
+            if (json.getString("error") == null || json.getString("error").isEmpty()) {
+                callback.run();
+//            } else if (json.getString("agentStatus") != null || !json.getString("agentStatus").equals("alive")) {
+//                logger.info("{}: death of agent {}", caller, id);
+//                vertx.undeploy(this.deploymentID());
+            }
+            else {
+                logger.info("Retrying ({}): {}", caller, json);
+                reportAndCallback(1000, reportId, caller, callback);
+            }
+        }));
+    }
+
+    protected void reportAndCallbackArgs(int timer, String reportId, String caller, Consumer<JsonObject> callback) {
+        vertx.setTimer(timer, __ -> get("/report/" + reportId, json -> {
+            if (json.getString("error") == null || json.getString("error").isEmpty()) {
+                callback.accept(json);
+//            } else if (json.getString("agentStatus") != null || !json.getString("agentStatus").equals("alive")) {
+//                logger.info("{}: death of agent {}", caller, id);
+//                vertx.undeploy(this.deploymentID());
+            } else {
+                logger.info("Retrying ({}): {}", caller, json);
+                reportAndCallbackArgs(1000, reportId, caller, callback);
+            }
+        }));
     }
 }

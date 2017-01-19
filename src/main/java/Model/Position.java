@@ -15,8 +15,22 @@ public class Position {
         z = z_;
     }
 
+    public int distance(Position pos2) {
+        return Math.abs(pos2.x - x) + Math.abs(pos2.y - y) + Math.abs(pos2.z - z);
+    }
+
     @Override
     public String toString() {
         return "Position{x=" + x + ", y=" + y + ", z=" + z + "}";
+    }
+
+    public void addX(int n) {
+        x += n;
+    }
+    public void addY(int n) {
+        y += n;
+    }
+    public void addZ(int n) {
+        z += n;
     }
 }
